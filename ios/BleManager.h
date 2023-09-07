@@ -1,7 +1,7 @@
 #import "React/RCTBridgeModule.h"
 #import "React/RCTEventEmitter.h"
 #import <CoreBluetooth/CoreBluetooth.h>
-
+#import "NotifyBufferContainer.h"
 
 @interface BleManager : RCTEventEmitter <RCTBridgeModule, CBCentralManagerDelegate, CBPeripheralDelegate>{
     NSString* discoverPeripherialCallbackId;
@@ -15,6 +15,7 @@
     NSMutableDictionary *notificationCallbacks;
     NSMutableDictionary *stopNotificationCallbacks;
     NSMutableDictionary *retrieveServicesLatches;
+    NSMutableDictionary<NSString*, NotifyBufferContainer*> *bufferedCharacteristics;
 }
 
 @property (strong, nonatomic) NSMutableSet *peripherals;
