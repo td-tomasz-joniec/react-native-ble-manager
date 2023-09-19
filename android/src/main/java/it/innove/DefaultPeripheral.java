@@ -36,7 +36,7 @@ public class DefaultPeripheral extends Peripheral {
         WritableMap advertising = Arguments.createMap();
 
         try {
-            advertising.putMap("manufacturerData", byteArrayToWritableMap(advertisingDataBytes));
+            advertising.putMap("manufacturerData", byteArrayToWritableMap(getManufacturerSpecificDataFromAdvertisingDataBytes()));
 
             if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 // We can check if peripheral is connectable using the scanresult

@@ -1,5 +1,6 @@
 package it.innove;
 
+import static android.bluetooth.le.ScanRecord.DATA_TYPE_MANUFACTURER_SPECIFIC_DATA;
 import static com.facebook.react.common.ReactConstants.TAG;
 
 import android.annotation.SuppressLint;
@@ -196,7 +197,7 @@ public class Peripheral extends BluetoothGattCallback {
             if (name != null)
                 advertising.putString("localName", name);
 
-            advertising.putMap("manufacturerData", byteArrayToWritableMap(advertisingDataBytes));
+            advertising.putMap("manufacturerData", byteArrayToWritableMap(getManufacturerSpecificDataFromAdvertisingDataBytes()));
 
             // No scanResult to access so we can't check if peripheral is connectable
             advertising.putBoolean("isConnectable", true);
@@ -1177,4 +1178,18 @@ public class Peripheral extends BluetoothGattCallback {
         return serviceUUID + "|" + characteristic.getUuid() + "|" + characteristic.getInstanceId();
     }
 
+    protected byte[] getManufacturerSpecificDataFromAdvertisingDataBytes() {
+        int index = 0;
+        while (index < advertisingDataBytes.length) {
+            int length = advertisingDataBytes[index++];
+            if (length == 0) break;
+            int type = advertisingDataBytes[index] & 0xff;
+            if (type == DATA_TYPE_MANUFACTURER_SPECIFIC_DATA) {
+                return Arrays.copyOfRange(advertisingDataBytes, index + 1, index + length);
+            }
+
+            index += length;
+        }
+        return new byte[0];
+    }
 }
