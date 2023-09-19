@@ -53,7 +53,7 @@ public class Peripheral extends BluetoothGattCallback {
     public static final int GATT_INSUFFICIENT_AUTHENTICATION = 5;
     public static final int GATT_AUTH_FAIL = 137;
 
-    private final BluetoothDevice device;
+    protected final BluetoothDevice device;
     private final Map<String, NotifyBufferContainer> bufferedCharacteristics;
     protected volatile byte[] advertisingDataBytes = new byte[0];
     protected volatile int advertisingRSSI;
@@ -436,11 +436,7 @@ public class Peripheral extends BluetoothGattCallback {
                 byte[] rest = null;
                 if (buffer != null) {
                     rest = buffer.put(dataValue);
-                    Log.d(BleManager.LOG_TAG, "onCharacteristicChanged-buffering: " +
-                            buffer.size() + " from peripheral: " + device.getAddress());
-
                     if (buffer.isBufferFull()) {
-                        Log.d(BleManager.LOG_TAG, "onCharacteristicChanged sending buffered data " + buffer.size());
 
                         // fetch and reset
                         dataValue = buffer.items.array();
@@ -449,8 +445,7 @@ public class Peripheral extends BluetoothGattCallback {
                         return;
                     }
                 }
-                Log.d(BleManager.LOG_TAG, "onCharacteristicChanged: " + BleManager.bytesToHex(dataValue)
-                        + " from peripheral: " + device.getAddress());
+                
                 WritableMap map = Arguments.createMap();
                 map.putString("peripheral", device.getAddress());
                 map.putString("characteristic", charString);

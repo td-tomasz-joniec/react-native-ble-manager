@@ -5,6 +5,7 @@ import android.bluetooth.le.ScanRecord;
 import android.bluetooth.le.ScanResult;
 import android.os.Build;
 import android.os.ParcelUuid;
+import android.annotation.SuppressLint;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -15,6 +16,7 @@ import com.facebook.react.bridge.WritableMap;
 import java.util.Map;
 
 
+@SuppressLint("MissingPermission")
 public class DefaultPeripheral extends Peripheral {
 
     private ScanRecord advertisingData;
@@ -37,6 +39,10 @@ public class DefaultPeripheral extends Peripheral {
 
         try {
             advertising.putMap("manufacturerData", byteArrayToWritableMap(getManufacturerSpecificDataFromAdvertisingDataBytes()));
+
+            map.putString("name", device.getName());
+            map.putString("id", device.getAddress()); // mac address
+            map.putInt("rssi", advertisingRSSI);
 
             if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 // We can check if peripheral is connectable using the scanresult

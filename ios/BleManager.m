@@ -5,6 +5,7 @@
 #import "NSData+Conversion.h"
 #import "CBPeripheral+Extensions.h"
 #import "BLECommandContext.h"
+#import "NotifyBufferContainer.h"
 
 static CBCentralManager *_sharedManager = nil;
 static BleManager * _instance = nil;
@@ -34,6 +35,7 @@ static bool hasListeners = NO;
         writeQueue = [NSMutableArray array];
         notificationCallbacks = [NSMutableDictionary new];
         stopNotificationCallbacks = [NSMutableDictionary new];
+        bufferedCharacteristics = [NSMutableDictionary new];
         _instance = self;
         NSLog(@"BleManager created");
         
@@ -95,8 +97,16 @@ static bool hasListeners = NO;
     if (peripheralReadCallbacks != NULL) {
         [self invokeAndClearDictionary:readCallbacks withKey:key usingParameters:@[[NSNull null], ([characteristic.value length] > 0) ? [characteristic.value toArray] : [NSNull null]]];
     } else {
+        NotifyBufferContainer* bufferContainer = [bufferedCharacteristics objectForKey: key];
+        NSData* value = characteristic.value;
+        if (bufferContainer) {
+            [bufferContainer put: value];
+            if (!bufferContainer.isBufferFull) return;
+            [bufferedCharacteristics removeObjectForKey: key];
+            value = bufferContainer.items;
+        }
         if (hasListeners) {
-            [self sendEventWithName:@"BleManagerDidUpdateValueForCharacteristic" body:@{@"peripheral": peripheral.uuidAsString, @"characteristic":characteristic.UUID.UUIDString.lowercaseString, @"service":characteristic.service.UUID.UUIDString.lowercaseString, @"value": ([characteristic.value length] > 0) ? [characteristic.value toArray] : [NSNull null]}];
+            [self sendEventWithName:@"BleManagerDidUpdateValueForCharacteristic" body:@{@"peripheral": peripheral.uuidAsString, @"characteristic":characteristic.UUID.UUIDString.lowercaseString, @"service":characteristic.service.UUID.UUIDString.lowercaseString, @"value": ([value length] > 0) ? [value toArray] : [NSNull null]}];
         }
     }
 }
@@ -347,7 +357,7 @@ RCT_EXPORT_METHOD(start:(NSDictionary *)options callback:(nonnull RCTResponseSen
     
     dispatch_queue_t queue;
     if ([[options allKeys] containsObject:@"queueIdentifierKey"]) {
-	dispatch_queue_attr_t queueAttributes = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_BACKGROUND, 0);
+    dispatch_queue_attr_t queueAttributes = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_BACKGROUND, 0);
         queue = dispatch_queue_create([[options valueForKey:@"queueIdentifierKey"] UTF8String], queueAttributes);
     } else {
         queue = dispatch_get_main_queue();
@@ -422,7 +432,7 @@ RCT_EXPORT_METHOD(stopScan:(nonnull RCTResponseSenderBlock)callback)
     }
     [manager stopScan];
     if (hasListeners) {
-				[self sendEventWithName:@"BleManagerStopScan" body:@{@"status": @0}];
+                [self sendEventWithName:@"BleManagerStopScan" body:@{@"status": @0}];
     }
     callback(@[[NSNull null]]);
 }
@@ -619,7 +629,7 @@ RCT_EXPORT_METHOD(writeWithoutResponse:(NSString *)deviceUUID serviceUUID:(NSStr
                 
                 offset += thisChunkSize;
                 [peripheral writeValue:chunk forCharacteristic:characteristic type:CBCharacteristicWriteWithoutResponse];
-		NSTimeInterval sleepTimeSeconds = (NSTimeInterval) queueSleepTime / 1000;
+        NSTimeInterval sleepTimeSeconds = (NSTimeInterval) queueSleepTime / 1000;
                 [NSThread sleepForTimeInterval: sleepTimeSeconds];
             } while (offset < length);
             
@@ -777,6 +787,28 @@ RCT_EXPORT_METHOD(startNotification:(NSString *)deviceUUID serviceUUID:(NSString
     }
     
 }
+
+RCT_EXPORT_METHOD(startNotificationUseBuffer:(NSString *)deviceUUID serviceUUID:(NSString*)serviceUUID  characteristicUUID:(NSString*)characteristicUUID buffer:(NSUInteger)buffer callback:(nonnull RCTResponseSenderBlock)callback)
+{
+    NSLog(@"startNotificationUseBuffer");
+    
+    BLECommandContext *context = [self getData:deviceUUID serviceUUIDString:serviceUUID characteristicUUIDString:characteristicUUID prop:CBCharacteristicPropertyNotify callback:callback];
+    
+    if (context) {
+        CBPeripheral *peripheral = [context peripheral];
+        CBCharacteristic *characteristic = [context characteristic];
+        
+        NSString *key = [self keyForPeripheral: peripheral andCharacteristic:characteristic];
+        [self insertCallback:callback intoDictionary:notificationCallbacks withKey:key];
+        
+        NotifyBufferContainer *bufferContainer = [[NotifyBufferContainer alloc] initWithSize: buffer];
+        [bufferedCharacteristics setObject:bufferContainer forKey:key];
+        
+        [peripheral setNotifyValue:YES forCharacteristic:characteristic];
+    }
+    
+}
+
 
 RCT_EXPORT_METHOD(stopNotification:(NSString *)deviceUUID serviceUUID:(NSString*)serviceUUID  characteristicUUID:(NSString*)characteristicUUID callback:(nonnull RCTResponseSenderBlock)callback)
 {
@@ -938,11 +970,11 @@ RCT_EXPORT_METHOD(requestMTU:(NSString *)deviceUUID mtu:(NSInteger)mtu callback:
     }
     
     if (hasListeners) {
-			if (error) {
-				[self sendEventWithName:@"BleManagerDisconnectPeripheral" body:@{@"peripheral": [peripheral uuidAsString], @"domain": [error domain], @"code": @(error.code)}];
-			} else {
-				[self sendEventWithName:@"BleManagerDisconnectPeripheral" body:@{@"peripheral": [peripheral uuidAsString]}];
-			}
+            if (error) {
+                [self sendEventWithName:@"BleManagerDisconnectPeripheral" body:@{@"peripheral": [peripheral uuidAsString], @"domain": [error domain], @"code": @(error.code)}];
+            } else {
+                [self sendEventWithName:@"BleManagerDisconnectPeripheral" body:@{@"peripheral": [peripheral uuidAsString]}];
+            }
     }
 }
 
