@@ -157,6 +157,8 @@ class BleManager extends ReactContextBaseJavaModule {
         IntentFilter intentFilter = new IntentFilter(BluetoothDevice.ACTION_PAIRING_REQUEST);
         intentFilter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
         context.registerReceiver(mReceiver, intentFilter);
+        IntentFilter aclDisconnectIntentFilter = new IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECTED);
+        context.registerReceiver(mReceiver, aclDisconnectIntentFilter);
         callback.invoke();
         Log.d(LOG_TAG, "BleManager initialized");
     }
@@ -631,8 +633,18 @@ class BleManager extends ReactContextBaseJavaModule {
                     bluetoothDevice.setPin(bondRequest.pin.getBytes());
                     bluetoothDevice.createBond();
                 }
+            } else if (action.equals(BluetoothDevice.ACTION_ACL_DISCONNECTED)) {
+                BluetoothDevice bluetoothDevice;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    bluetoothDevice = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice.class);
+                } else {
+                    bluetoothDevice = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                }
+                Peripheral peripheral = peripherals.get(bluetoothDevice.getAddress());
+                if (peripheral != null) {
+                    peripheral.sendConnectionEvent(bluetoothDevice, "BleManagerDisconnectPeripheral", -1);
+                }
             }
-
         }
     };
 

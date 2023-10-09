@@ -99,7 +99,7 @@ public class Peripheral extends BluetoothGattCallback {
         }
     }
 
-    private void sendConnectionEvent(BluetoothDevice device, String eventName, int status) {
+    public void sendConnectionEvent(BluetoothDevice device, String eventName, int status) {
         WritableMap map = Arguments.createMap();
         map.putString("peripheral", device.getAddress());
         if (status != -1) {
@@ -170,7 +170,6 @@ public class Peripheral extends BluetoothGattCallback {
                     if (force) {
                         gatt.close();
                         gatt = null;
-                        sendConnectionEvent(device, "BleManagerDisconnectPeripheral", BluetoothGatt.GATT_SUCCESS);
                     }
                     Log.d(BleManager.LOG_TAG, "Disconnect");
                 } catch (Exception e) {
